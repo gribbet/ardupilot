@@ -771,7 +771,7 @@ function update()
 
    local button_state = button:get_button_state(button_number)
    if state ~= button_state then
-      gcs:send_text(0, string.format("release: " .. tostring(state)))
+      -- gcs:send_text(0, string.format("release: " .. tostring(state)))
       button_state = state
       if button_state then
          release_start_t = t
