@@ -110,6 +110,11 @@ bool Plane::stick_mixing_enabled(void)
  */
 void Plane::stabilize_roll()
 {
+    // if we are in AUTO and have not had GPS lock since entering the mode then force wings level
+    if (control_mode == &mode_auto && !auto_state.had_gps) {
+        nav_roll_cd = 0;
+    }
+
     if (fly_inverted()) {
         // we want to fly upside down. We need to cope with wrap of
         // the roll_sensor interfering with wrap of nav_roll, which

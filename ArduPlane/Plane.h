@@ -536,6 +536,9 @@ private:
 
         // last home altitude for detecting changes
         int32_t last_home_alt_cm;
+        
+        // have we had GPS lock since entering AUTO?
+        bool had_gps;
     } auto_state;
 
 #if AP_SCRIPTING_ENABLED
