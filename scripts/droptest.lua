@@ -697,8 +697,8 @@ function create_mission()
    local base_angle2 = bearing12 - 90
 
    -- work out which base angle brings us closer to the DLS
-   local base_dist1 = loc_shift(land1_loc,base_angle1,10):get_distance(dls_loc)
-   local base_dist2 = loc_shift(land1_loc,base_angle2,10):get_distance(dls_loc)
+   local base_dist1 = loc_shift(land1_loc,base_angle1,10):get_distance(start)
+   local base_dist2 = loc_shift(land1_loc,base_angle2,10):get_distance(start)
    local base_angle
    if base_dist1 < base_dist2 then
       base_angle = base_angle1
