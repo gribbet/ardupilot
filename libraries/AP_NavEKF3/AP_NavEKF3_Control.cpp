@@ -59,9 +59,13 @@ NavEKF3_core::MagCal NavEKF3_core::effective_magCal(void) const
 // avoid unnecessary operations
 void NavEKF3_core::setWindMagStateLearningMode()
 {
-    const bool canEstimateWind = ((finalInflightYawInit && dragFusionEnabled) || assume_zero_sideslip()) &&
+    bool canEstimateWind = ((finalInflightYawInit && dragFusionEnabled) || assume_zero_sideslip()) &&
                                  !onGround &&
                                  PV_AidingMode != AID_NONE;
+    if (AP_HAL::millis() - onGroundChange_ms < 10000) {
+        // keep wind inhibited for 10s after arming to allow for aircraft to settle
+        canEstimateWind = false;
+    }
     if (!inhibitWindStates && !canEstimateWind) {
         inhibitWindStates = true;
         lastAspdEstIsValid = false;
@@ -527,7 +531,8 @@ void NavEKF3_core::checkAttitudeAlignmentStatus()
 // return true if we should use the airspeed sensor
 bool NavEKF3_core::useAirspeed(void) const
 {
-    return dal.airspeed_sensor_enabled();
+    const auto *aspeed = dal.airspeed();
+    return aspeed && dal.airspeed_sensor_enabled() && !dal.airspeed_is_synthetic() && aspeed->get_airspeed() > 10.0f;
 }
 
 // return true if we should use the range finder sensor
