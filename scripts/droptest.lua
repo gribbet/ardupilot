@@ -55,7 +55,6 @@ DO_JUMP = 177
 NAV_WAYPOINT = 16
 NAV_LAND = 21
 DO_LAND_START = 189
-JUMP_TAG = 600
 
 local APPROACH_DIST_MAX = 6400
 local BASE_DIST = 1390
@@ -345,19 +344,6 @@ function distance_to_land(cnum)
    return distance + distance_to_land_nopos(cnum)
 end
 
-function landing_start_index() 
-   local N = mission:num_commands()
-   local start = 1
-   for i=1,N-1 do
-      local m = mission:get_item(i)
-      if m:command() == JUMP_TAG then
-         start = i
-         break
-      end
-   end
-   return start
-end
-
 -- see if we are on the optimal waypoint number for landing
 -- given the assumed glide slope
 function mission_update()
@@ -368,7 +354,6 @@ function mission_update()
       -- not flying mission yet
       return
    end
-   if cnum < landing_start_index() then return end
    local m = mission:get_item(cnum)
    if not m then
       logit("invalid mission")
@@ -506,7 +491,7 @@ end
 function fix_WP_heights()
    gcs:send_text(0, string.format("Fixing WP heights"))
    local N = mission:num_commands()
-   for i = landing_start_index(), N-1 do
+   for i = 1, N-1 do
       local m = mission:get_item(i)
       if m:command() == NAV_WAYPOINT then
          local dist = distance_to_land_nopos(i)
@@ -523,15 +508,13 @@ function fix_WP_heights()
 end
 -- see if mission is setup for auto-creation
 function create_mission_check()
-   local N = mission:num_commands()
-
-   if N < 4 then
+   if mission:num_commands() ~= 4 then
       return false
    end
-   if mission:get_item(N - 3):command() ~= NAV_LAND or mission:get_item(N - 2):command() ~= NAV_LAND then
+   if mission:get_item(1):command() ~= NAV_LAND or mission:get_item(2):command() ~= NAV_LAND then
       return false
    end
-   if mission:get_item(N - 1):command() ~= DO_LAND_START then
+   if mission:get_item(3):command() ~= DO_LAND_START then
       return false
    end
    return true
@@ -608,10 +591,11 @@ function adjust_approach_dist(land1_loc, dls_loc, angle)
    gcs:send_text(0, string.format("app_dist=%.2f dist=%.2f target_dist=%.2f", APPROACH_DIST_MAX, dist, target_dist))
 end
 
-function create_pattern(basepos, angle, base_angle, runway_length)
+function create_pattern(wp, basepos, angle, base_angle, runway_length)
 
    local jump_target = mission:num_commands() + 3
 
+   wp:command(NAV_WAYPOINT)
    local loc = loc_copy(basepos)
    loc:offset_bearing(angle,APPROACH_DIST_MAX)
    loc:offset_bearing(base_angle,BASE_DIST)
@@ -654,20 +638,13 @@ end
 -- auto-create mission
 function create_mission()
    gcs:send_text(0, string.format("creating mission"))
-   local N = mission:num_commands()
-   local land1_loc = get_location(N - 3)
-   local land2_loc = get_location(N - 2)
-   local dls_loc = get_location(N - 1)
+   local land1_loc = get_location(1)
+   local land2_loc = get_location(2)
+   local dls = mission:get_item(3)
+   local dls_loc = get_location(3)
    local runway_length = land1_loc:get_distance(land2_loc)
 
-   local start_index = landing_start_index()
-   local start = get_location(start_index - 1)
-   local path = {}
-   for i = 1, start_index do
-      table.insert(path, mission:get_item(i))
-   end
-
-   local alt_agl = (start:alt() - land1_loc:alt()) * 0.01
+   local alt_agl = (dls_loc:alt() - land1_loc:alt()) * 0.01
    if alt_agl <= 0 then
       gcs:send_text(0, string.format("invalid altitudes"))
       return
@@ -697,19 +674,19 @@ function create_mission()
    local base_angle2 = bearing12 - 90
 
    -- work out which base angle brings us closer to the DLS
-   local base_dist1 = loc_shift(land1_loc,base_angle1,10):get_distance(start)
-   local base_dist2 = loc_shift(land1_loc,base_angle2,10):get_distance(start)
-   local base_angle
+   local base_dist1 = loc_shift(land1_loc,base_angle1,10):get_distance(dls_loc)
+   local base_dist2 = loc_shift(land1_loc,base_angle2,10):get_distance(dls_loc)
    if base_dist1 < base_dist2 then
       base_angle = base_angle1
    else
       base_angle = base_angle2
    end
 
-   adjust_approach_dist(land1_loc, start, bearing12)
+   adjust_approach_dist(land1_loc, dls_loc, bearing12)
    APPROACH_DIST_MAX = math.max(APPROACH_DIST_MAX, 3*runway_length)
 
-
+   local wp = mission:get_item(1)
+   wp:command(NAV_WAYPOINT)
 
    mission:clear()
 
@@ -719,23 +696,17 @@ function create_mission()
    -- setup DLS1
    wp_add(dls_loc,DO_LAND_START,0,0)
 
-   for i = 1, #path do
-      wp_add(wp_getloc(path[i]),path[i]:command(),0,0)
-   end
-
-   wp_add(start,DO_LAND_START,0,0)
-
    -- first pattern
-   create_pattern(land1_loc, bearing12, base_angle, runway_length)
+   create_pattern(wp, land1_loc, bearing12, base_angle, runway_length)
 
-   adjust_approach_dist(land2_loc, start, bearing21)
+   adjust_approach_dist(land2_loc, dls_loc, bearing21)
    APPROACH_DIST_MAX = math.max(APPROACH_DIST_MAX, 3*runway_length)
    
    -- setup DLS2
-   wp_add(start,DO_LAND_START,0,0)
+   wp_add(dls_loc,DO_LAND_START,0,0)
 
    -- second pattern
-   create_pattern(land2_loc, bearing21, base_angle, runway_length)
+   create_pattern(wp, land2_loc, bearing21, base_angle, runway_length)
 
    fix_WP_heights()
 end
