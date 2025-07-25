@@ -67,6 +67,37 @@ local function get_glide_slope()
    end
 end
 
+
+local function get_location(i)
+   local m = mission:get_item(i)
+   local loc = Location()
+   if m ~= nil then
+      loc:lat(m:x())
+      loc:lng(m:y())
+      loc:alt(math.floor(m:z()*100))
+   end
+   loc:relative_alt(false)
+   loc:terrain_alt(false)
+   loc:origin_alt(false)
+   return loc
+end
+
+
+local function get_position()
+   if type(gps) ~= "table" then return nil end
+   local loc = ahrs:get_position()
+   if not loc then
+      loc = gps:location(0)
+   end
+   if not loc and gps:num_sensors() >= 2 then
+      loc = gps:location(1)
+   end
+   if not loc then
+      return nil
+   end
+   return loc
+end
+
 -- fill in LANDING_AMSL, height of first landing point in mission
 local function get_landing_AMSL()
    local N = mission:num_commands()
@@ -137,14 +168,7 @@ local function right_direction(cnum)
    return true
 end
 
-local function resolve_jump(i)
-   local m = mission:get_item(i)
-   while m ~= nil and m:command() == DO_JUMP do
-      i = math.floor(m:param1())
-      m = mission:get_item(i)
-   end
-   return i
-end
+
 
 -- return true if cnum is a candidate for wp selection
 local function is_candidate(cnum)
@@ -207,33 +231,7 @@ local function is_change_candidate(cnum)
    return false
 end
 
-local function get_location(i)
-   local m = mission:get_item(i)
-   local loc = Location()
-   if m ~= nil then
-      loc:lat(m:x())
-      loc:lng(m:y())
-      loc:alt(math.floor(m:z()*100))
-   end
-   loc:relative_alt(false)
-   loc:terrain_alt(false)
-   loc:origin_alt(false)
-   return loc
-end
 
-local function get_position()
-   local loc = ahrs:get_position()
-   if not loc and type(gps) == "table" then
-      loc = gps:location(0)
-   end
-   if not loc and type(gps) == "table" and gps:num_sensors() >= 2 then
-      loc = gps:location(1)
-   end
-   if not loc then
-      return nil
-   end
-   return loc
-end
 
 
 -- vector2 dot product
@@ -293,7 +291,7 @@ local function distance_to_land_nopos(cnum)
       if m ~= nil and m:command() == NAV_LAND then
          break
       end
-      local i2 = resolve_jump(i+1)
+      local i2 = i+1
       local loc1 = get_location(i)
       local loc2 = get_location(i2)
 
@@ -497,7 +495,6 @@ local function init()
 
    gcs:send_text(0, string.format("LANDING_AMSL %.1f GLIDE_SLOPE %.1f", LANDING_AMSL, GLIDE_SLOPE))
 
-   fix_WP_heights()
    done_init = true
 end
 
