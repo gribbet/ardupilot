@@ -85,7 +85,7 @@ end
 
 
 local function get_position()
-   if type(gps) ~= "table" then return nil end
+   gcs:send_text(0, type(gps))
    local loc = ahrs:get_position()
    if not loc then
       loc = gps:location(0)
