@@ -74,7 +74,7 @@ local function get_location(i)
    if m ~= nil then
       loc:lat(m:x())
       loc:lng(m:y())
-      loc:alt(math.floor(m:z()*100))
+      loc:alt(math.floor(m:z() * 100))
    end
    loc:relative_alt(false)
    loc:terrain_alt(false)
@@ -101,7 +101,7 @@ end
 -- fill in LANDING_AMSL, height of first landing point in mission
 local function get_landing_AMSL()
    local N = mission:num_commands()
-   for i = 1, N-1 do
+   for i = 1, N - 1 do
       local m = mission:get_item(i)
       if m ~= nil and m:command() == NAV_LAND then
          LANDING_AMSL = m:z()
@@ -122,12 +122,12 @@ local function ground_course()
    -- use mission direction
    local cnum = mission:get_current_nav_index()
    local N = mission:num_commands()
-   if cnum > N-1 then
+   if cnum > N - 1 then
       return 0.0
    end
    if mission:get_item(cnum):command() == NAV_WAYPOINT then
       local loc1 = get_position()
-      local loc2 = get_location(cnum+1)
+      local loc2 = get_location(cnum + 1)
       if loc1 ~= nil and loc2 ~= nil then
          return math.deg(loc1:get_bearing(loc2))
       end
@@ -171,12 +171,12 @@ end
 -- return true if cnum is a candidate for wp selection
 local function is_candidate(cnum)
    local N = mission:num_commands()
-   if cnum > N-3 then
+   if cnum > N - 3 then
       return false
    end
    local m = mission:get_item(cnum)
-   local m2 = mission:get_item(cnum+1)
-   local m3 = mission:get_item(cnum+2)
+   local m2 = mission:get_item(cnum + 1)
+   local m3 = mission:get_item(cnum + 2)
    if m ~= nil and m:command() == NAV_WAYPOINT and m2 ~= nil and m2:command() == NAV_WAYPOINT and m3 ~= nil and (m3:command() == DO_JUMP or m3:command() == NAV_WAYPOINT or m3:command() == NAV_LAND) then
       return true
    end
@@ -215,11 +215,11 @@ local function is_change_candidate(cnum)
       logit(string.format(' YES -> long way'))
       return true
    end
-   if cnum > mission:num_commands()-2 then
+   if cnum > mission:num_commands() - 2 then
       logit(string.format(' NO -> num cmds'))
       return false
    end
-   local m2 = mission:get_item(cnum+1)
+   local m2 = mission:get_item(cnum + 1)
    if m1 ~= nil and m1:command() == NAV_WAYPOINT and m2 ~= nil and m2:command() ~= NAV_LAND then
       -- allow change of cross WPs when more than 2km away
       logit(string.format(' YES -> is land'))
@@ -234,7 +234,7 @@ end
 
 -- vector2 dot product
 local function vec2_dot(vec1, vec2)
-   return vec1:x()*vec2:x() + vec1:y()*vec2:y()
+   return vec1:x() * vec2:x() + vec1:y() * vec2:y()
 end
 
 local function constrain(v, minv, maxv)
@@ -289,7 +289,7 @@ local function distance_to_land_nopos(cnum)
       if m ~= nil and m:command() == NAV_LAND then
          break
       end
-      local i2 = i+1
+      local i2 = i + 1
       local loc1 = get_location(i)
       local loc2 = get_location(i2)
 
@@ -372,21 +372,21 @@ local function mission_update()
    local current_err = current_distance - avail_dist
    local original_err = current_err
    gcs:send_text(0, string.format("cnum=%u dist=%.0f alt=%.0f slope=%.2f err=%.0f",
-                                  cnum, feet(current_distance), feet(current_alt), current_slope,
-                                  feet(-current_err)))
+      cnum, feet(current_distance), feet(current_alt), current_slope,
+      feet(-current_err)))
    logit(string.format("cnum=%u dist=%.0f alt=%.0f slope=%.2f err=%.0f",
-                       cnum, feet(current_distance), feet(current_alt), current_slope,
-                       feet(-current_err)))
+      cnum, feet(current_distance), feet(current_alt), current_slope,
+      feet(-current_err)))
 
    local current_wp_loc = get_location(cnum)
    local current_wp_dist = loc:get_distance(current_wp_loc)
    if current_wp_dist < SMALL_WP_DIST then
       -- when within 1.5km of current wp consider moving to next WP
-      if mission:get_item(cnum+1):command() == NAV_WAYPOINT then
+      if mission:get_item(cnum + 1):command() == NAV_WAYPOINT then
          -- check if we should skip the current WP and move to the next WP
          local loc1 = get_position()
          local loc2 = get_location(cnum)
-         local loc3 = get_location(cnum+1)
+         local loc3 = get_location(cnum + 1)
          if loc1 ~= nil and loc2 ~= nil and loc3 ~= nil then
             local dist = loc1:get_distance(loc2)
             local dist_change = loc2:get_distance(loc3)
@@ -394,8 +394,8 @@ local function mission_update()
             local target_bearing2 = math.deg(loc1:get_bearing(loc3))
             local ang_change = math.abs(target_bearing - target_bearing2)
             if ang_change < 10 and dist < 1000 and dist_change < 1000 then
-               gcs:send_text(0, string.format("Skip NEW WP %u ang=%.0f dc=%.0f", cnum+1, ang_change, dist_change))
-               mission:set_current_cmd(cnum+1)
+               gcs:send_text(0, string.format("Skip NEW WP %u ang=%.0f dc=%.0f", cnum + 1, ang_change, dist_change))
+               mission:set_current_cmd(cnum + 1)
                return true
             end
          end
@@ -419,7 +419,7 @@ local function mission_update()
    -- look for alternatives
    local N = mission:num_commands()
    local best = cnum
-   for i = 1, N-3 do
+   for i = 1, N - 3 do
       if is_candidate(i) and right_direction(i) then
          -- this is an alternative path
          local dist = distance_to_land(i)
@@ -448,7 +448,7 @@ local function release_trigger()
    if mission:num_commands() > 2 then
       mission:set_current_cmd(2) -- ?
    end
-   notify:handle_rgb(0,255,0,0)
+   notify:handle_rgb(0, 255, 0, 0)
 end
 
 local function set_standby()
@@ -467,16 +467,16 @@ local function set_standby()
    end
    if gps_status == 0 then
       -- red flash slow for no GPS
-      notify:handle_rgb(255,0,0,2)
+      notify:handle_rgb(255, 0, 0, 2)
    elseif mission:num_commands() <= 2 then
       -- red flash fast means no mission
-      notify:handle_rgb(255,0,0,10)
+      notify:handle_rgb(255, 0, 0, 10)
    elseif gps_status >= 3 then
       -- green blinking 3D lock, manual
-      notify:handle_rgb(0,255,0,2)
+      notify:handle_rgb(0, 255, 0, 2)
    else
       -- flashing blue for no 3D lock
-      notify:handle_rgb(0,0,255,2)
+      notify:handle_rgb(0, 0, 255, 2)
    end
    local t = 0.001 * millis():tofloat()
    if t - last_tick_t > 10 then
@@ -510,8 +510,8 @@ local AIRSPEED_SCHEDULE_MPH = {
 
 local function airspeed_update(dt)
    local stage = math.floor(dt / 30.0)
-   stage = math.min(stage, #AIRSPEED_SCHEDULE_MPH-1)
-   local spd_mph = AIRSPEED_SCHEDULE_MPH[stage+1]
+   stage = math.min(stage, #AIRSPEED_SCHEDULE_MPH - 1)
+   local spd_mph = AIRSPEED_SCHEDULE_MPH[stage + 1]
    local spd_mps = spd_mph * 0.44704
    if TARGET_AIRSPEED ~= spd_mps then
       gcs:send_text(0, string.format("Target airspeed %.1f mph", spd_mph))
@@ -526,7 +526,7 @@ local function update()
    end
    if not is_SITL and rc:has_valid_input() and rc:get_pwm(8) > 1800 then
       -- disable automation
-      notify:handle_rgb(255,255,255,10)
+      notify:handle_rgb(255, 255, 255, 10)
       return
    end
 
@@ -565,35 +565,35 @@ local function update()
       set_standby()
    elseif mission:num_commands() < 2 then
       -- no mission, red fast
-      notify:handle_rgb(255,0,0,10)
+      notify:handle_rgb(255, 0, 0, 10)
    elseif t - last_mission_update_t >= 1.0 then
       last_mission_update_t = t
-      notify:handle_rgb(0,255,0,0)
+      notify:handle_rgb(0, 255, 0, 0)
       mission_update()
       if release_t > 0 then
-         airspeed_update(t-release_t)
+         airspeed_update(t - release_t)
       end
    end
 end
 
 local function set_fault_led()
    -- setup LED for lua fault condition
-   notify:handle_rgb(255,255,0,2)
+   notify:handle_rgb(255, 255, 0, 2)
 end
 
 -- wrapper around update(). This calls update() at 10Hz
 -- and if update faults then an error is displayed, but the script is not stopped
 local function protected_wrapper()
-  local success, err = pcall(update)
-  if not success then
-     gcs:send_text(0, "Internal Error: " .. err)
-     -- when we fault we run the update function again after 1s, slowing it
-     -- down a bit so we don't flood the console with errors
-     pcall(set_fault_led)
-     return protected_wrapper, 1000
-  end
-  -- otherwise run at 10Hz
-  return protected_wrapper, 100
+   local success, err = pcall(update)
+   if not success then
+      gcs:send_text(0, "Internal Error: " .. err)
+      -- when we fault we run the update function again after 1s, slowing it
+      -- down a bit so we don't flood the console with errors
+      pcall(set_fault_led)
+      return protected_wrapper, 1000
+   end
+   -- otherwise run at 10Hz
+   return protected_wrapper, 100
 end
 
 -- start running update loop
