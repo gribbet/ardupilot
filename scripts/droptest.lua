@@ -6,9 +6,8 @@
 -- tests to run
 -- check on loss of GPS, that we switch to pitot airspeed
 
-done_init = false
+local done_init = false
 local button_number = 1
-local button_state = 0
 
 local MODE_MANUAL = 0
 local MODE_AUTO = 10
@@ -34,18 +33,18 @@ local last_wp_change_t = 0.0
 local release_t = 0
 
 local ENABLE_LOGGING = false
-local logging_init = false
+local logfile = nil
 
-
-function logit(txt)
+local function logit(txt)
    if not ENABLE_LOGGING then
       return
    end
 
-   if (logging_init == false) then
+   if logfile == nil then
       logfile = io.open("log.txt", "w")
-      logging_init = true
    end
+
+   if logfile == nil then return end
 
    logfile:write(txt .. "\n")
    logfile:flush()
@@ -56,27 +55,24 @@ NAV_WAYPOINT = 16
 NAV_LAND = 21
 DO_LAND_START = 189
 
-local APPROACH_DIST_MAX = 6400
-local BASE_DIST = 1390
-local STEP_RATIO = 0.5
 -- see if we are running on SITL
 local is_SITL = param:get('SIM_SPEEDUP')
 
 local TARGET_AIRSPEED = param:get('AIRSPEED_CRUISE')
 
-function get_glide_slope()
-   GLIDE_SLOPE = param:get('SCR_USER2')
+local function get_glide_slope()
+   GLIDE_SLOPE = param:get('SCR_USER2') or 0
    if GLIDE_SLOPE <= 0 then
       GLIDE_SLOPE = 6.0
    end
 end
 
 -- fill in LANDING_AMSL, height of first landing point in mission
-function get_landing_AMSL()
+local function get_landing_AMSL()
    local N = mission:num_commands()
    for i = 1, N-1 do
       local m = mission:get_item(i)
-      if m:command() == NAV_LAND then
+      if m ~= nil and m:command() == NAV_LAND then
          local loc = get_location(i)
          ahrs:set_home(loc)
          LANDING_AMSL = m:z()
@@ -86,7 +82,8 @@ function get_landing_AMSL()
 end
 
 -- return ground course in degrees
-function ground_course()
+local function ground_course()
+   if type(gps) ~= "table" then return 0 end
    if gps:status(0) >= 3 and gps:ground_speed(0) > 20 then
       return gps:ground_course(0)
    end
@@ -102,23 +99,25 @@ function ground_course()
    if mission:get_item(cnum):command() == NAV_WAYPOINT then
       local loc1 = get_position()
       local loc2 = get_location(cnum+1)
-      return math.deg(loc1:get_bearing(loc2))
+      if loc1 ~= nil and loc2 ~= nil then
+         return math.deg(loc1:get_bearing(loc2))
+      end
    end
    return 0.0
 end
 
-function feet(m)
+local function feet(m)
    return m * 3.2808399
 end
 
-function wrap_180(angle)
+local function wrap_180(angle)
    if angle > 180 then
       angle = angle - 360.0
    end
    return angle
 end
 
-function right_direction(cnum)
+local function right_direction(cnum)
    local loc = get_position()
    if loc == nil then
       return false
@@ -138,9 +137,9 @@ function right_direction(cnum)
    return true
 end
 
-function resolve_jump(i)
+local function resolve_jump(i)
    local m = mission:get_item(i)
-   while m:command() == DO_JUMP do
+   while m ~= nil and m:command() == DO_JUMP do
       i = math.floor(m:param1())
       m = mission:get_item(i)
    end
@@ -148,15 +147,15 @@ function resolve_jump(i)
 end
 
 -- return true if cnum is a candidate for wp selection
-function is_candidate(cnum)
+local function is_candidate(cnum)
    local N = mission:num_commands()
    if cnum > N-3 then
       return false
    end
-   m = mission:get_item(cnum)
-   m2 = mission:get_item(cnum+1)
-   m3 = mission:get_item(cnum+2)
-   if m:command() == NAV_WAYPOINT and m2:command() == NAV_WAYPOINT and (m3:command() == DO_JUMP or m3:command() == NAV_WAYPOINT or m3:command() == NAV_LAND) then
+   local m = mission:get_item(cnum)
+   local m2 = mission:get_item(cnum+1)
+   local m3 = mission:get_item(cnum+2)
+   if m ~= nil and m:command() == NAV_WAYPOINT and m2 ~= nil and m2:command() == NAV_WAYPOINT and m3 ~= nil and (m3:command() == DO_JUMP or m3:command() == NAV_WAYPOINT or m3:command() == NAV_LAND) then
       return true
    end
    return false
@@ -164,7 +163,7 @@ end
 
 
 -- return true if cnum is a candidate for wp change
-function is_change_candidate(cnum)
+local function is_change_candidate(cnum)
    logit(string.format('is_change_candidate(%d)', cnum))
 
    if is_candidate(cnum) then
@@ -173,23 +172,23 @@ function is_change_candidate(cnum)
    end
    local loc = ahrs:get_position()
    local m1 = mission:get_item(cnum)
-   if m1:command() ~= NAV_WAYPOINT then
+   if m1 ~= nil and m1:command() ~= NAV_WAYPOINT then
       -- only change when navigating to a WP
       logit(string.format(' NO -> not WP'))
       return false
    end
-   if loc:alt() * 0.01 - LANDING_AMSL > 1000 then
+   if loc ~= nil and loc:alt() * 0.01 - LANDING_AMSL > 1000 then
       -- if we have lots of height then we can change
       logit(string.format(' YES -> plenty of height'))
       return true
    end
    local loc2 = get_location(cnum)
-   if loc:get_distance(loc2) < SMALL_WP_DIST then
+   if loc ~= nil and loc:get_distance(loc2) < SMALL_WP_DIST then
       -- if we are within 1.5km then no change
       logit(string.format(' NO -> within %.0f', SMALL_WP_DIST))
       return false
    end
-   if loc:get_distance(loc2) > 3500 then
+   if loc ~= nil and loc:get_distance(loc2) > 3500 then
       -- if a long way from target allow change
       logit(string.format(' YES -> long way'))
       return true
@@ -199,7 +198,7 @@ function is_change_candidate(cnum)
       return false
    end
    local m2 = mission:get_item(cnum+1)
-   if m1:command() == NAV_WAYPOINT and m2:command() ~= NAV_LAND then
+   if m1 ~= nil and m1:command() == NAV_WAYPOINT and m2 ~= nil and m2:command() ~= NAV_LAND then
       -- allow change of cross WPs when more than 2km away
       logit(string.format(' YES -> is land'))
       return true
@@ -208,24 +207,26 @@ function is_change_candidate(cnum)
    return false
 end
 
-function get_location(i)
+local function get_location(i)
    local m = mission:get_item(i)
    local loc = Location()
-   loc:lat(m:x())
-   loc:lng(m:y())
+   if m ~= nil then
+      loc:lat(m:x())
+      loc:lng(m:y())
+      loc:alt(math.floor(m:z()*100))
+   end
    loc:relative_alt(false)
    loc:terrain_alt(false)
    loc:origin_alt(false)
-   loc:alt(math.floor(m:z()*100))
    return loc
 end
 
-function get_position()
+local function get_position()
    local loc = ahrs:get_position()
-   if not loc then
+   if not loc and type(gps) == "table" then
       loc = gps:location(0)
    end
-   if not loc and gps:num_sensors() >= 2 then
+   if not loc and type(gps) == "table" and gps:num_sensors() >= 2 then
       loc = gps:location(1)
    end
    if not loc then
@@ -234,17 +235,13 @@ function get_position()
    return loc
 end
 
--- vector2 cross product
-function vec2_cross(vec1, vec2)
-   return vec1:x()*vec2:y() - vec1:y()*vec2:x()
-end
 
 -- vector2 dot product
-function vec2_dot(vec1, vec2)
+local function vec2_dot(vec1, vec2)
    return vec1:x()*vec2:x() + vec1:y()*vec2:y()
 end
 
-function constrain(v, minv, maxv)
+local function constrain(v, minv, maxv)
    if v < minv then
       v = minv
    end
@@ -255,7 +252,7 @@ function constrain(v, minv, maxv)
 end
 
 -- calculate wind adjustment for a WP segment
-function wind_adjustment(loc1, loc2)
+local function wind_adjustment(loc1, loc2)
    local distNE = loc1:get_distance_NE(loc2)
    local dist = distNE:length()
    if dist < 1 then
@@ -277,13 +274,13 @@ function wind_adjustment(loc1, loc2)
    return dist * change
 end
 
-function turn_adjustment(bearing_change_deg)
+local function turn_adjustment(bearing_change_deg)
    local height_loss = TURN_HEIGHT_LOSS * math.abs(bearing_change_deg / 180.0)
    return height_loss * GLIDE_SLOPE
 end
 
 -- get distance to landing point, ignoring current location
-function distance_to_land_nopos(cnum)
+local function distance_to_land_nopos(cnum)
    local N = mission:num_commands()
    if cnum >= N then
       return -1
@@ -292,8 +289,8 @@ function distance_to_land_nopos(cnum)
    local i = cnum
    local last_bearing = 0
    while i < N do
-      m = mission:get_item(i)
-      if m:command() == NAV_LAND then
+      local m = mission:get_item(i)
+      if m ~= nil and m:command() == NAV_LAND then
          break
       end
       local i2 = resolve_jump(i+1)
@@ -325,8 +322,9 @@ function distance_to_land_nopos(cnum)
 end
 
 -- get distance to landing point, with current location
-function distance_to_land(cnum)
+local function distance_to_land(cnum)
    local loc = get_position()
+   if loc == nil then return 0 end
    local N = mission:num_commands()
    if cnum >= N then
       return -1
@@ -346,7 +344,7 @@ end
 
 -- see if we are on the optimal waypoint number for landing
 -- given the assumed glide slope
-function mission_update()
+local function mission_update()
    logit("mission_update()")
    local cnum = mission:get_current_nav_index()
    if cnum <= 0 then
@@ -393,15 +391,17 @@ function mission_update()
          local loc1 = get_position()
          local loc2 = get_location(cnum)
          local loc3 = get_location(cnum+1)
-         local dist = loc1:get_distance(loc2)
-         local dist_change = loc2:get_distance(loc3)
-         local target_bearing = math.deg(loc1:get_bearing(loc2))
-         local target_bearing2 = math.deg(loc1:get_bearing(loc3))
-         local ang_change = math.abs(target_bearing - target_bearing2)
-         if ang_change < 10 and dist < 1000 and dist_change < 1000 then
-            gcs:send_text(0, string.format("Skip NEW WP %u ang=%.0f dc=%.0f", cnum+1, ang_change, dist_change))
-            mission:set_current_cmd(cnum+1)
-            return true
+         if loc1 ~= nil and loc2 ~= nil and loc3 ~= nil then
+            local dist = loc1:get_distance(loc2)
+            local dist_change = loc2:get_distance(loc3)
+            local target_bearing = math.deg(loc1:get_bearing(loc2))
+            local target_bearing2 = math.deg(loc1:get_bearing(loc3))
+            local ang_change = math.abs(target_bearing - target_bearing2)
+            if ang_change < 10 and dist < 1000 and dist_change < 1000 then
+               gcs:send_text(0, string.format("Skip NEW WP %u ang=%.0f dc=%.0f", cnum+1, ang_change, dist_change))
+               mission:set_current_cmd(cnum+1)
+               return true
+            end
          end
       end
       logit(string.format("wp dist %.2f", current_wp_dist))
@@ -436,7 +436,7 @@ function mission_update()
          end
       end
    end
-   improvement = math.abs(current_err) - math.abs(original_err)
+   local improvement = math.abs(current_err) - math.abs(original_err)
    if cnum ~= best then
       gcs:send_text(0, string.format("NEW WP %u err=%.0f imp=%.0f", best, current_err, improvement))
       logit(string.format("NEW WP %u err=%.0f imp=%.0f", best, current_err, improvement))
@@ -445,7 +445,7 @@ function mission_update()
    end
 end
 
-function release_trigger()
+local function release_trigger()
    gcs:send_text(0, string.format("release trigger"))
    vehicle:set_mode(MODE_AUTO)
    arming:arm_force()
@@ -455,7 +455,8 @@ function release_trigger()
    notify:handle_rgb(0,255,0,0)
 end
 
-function set_standby()
+local function set_standby()
+   if type(gps) ~= "table" then return end
    local mode = vehicle:get_mode()
    if mode ~= MODE_MANUAL then
       gcs:send_text(0, string.format("forcing standby MANUAL"))
@@ -488,232 +489,9 @@ function set_standby()
    end
 end
 
-function fix_WP_heights()
-   gcs:send_text(0, string.format("Fixing WP heights"))
-   local N = mission:num_commands()
-   for i = 1, N-1 do
-      local m = mission:get_item(i)
-      if m:command() == NAV_WAYPOINT then
-         local dist = distance_to_land_nopos(i)
-         local current_alt = m:z()
-         local new_alt = LANDING_AMSL + dist / GLIDE_SLOPE
-         if math.abs(current_alt - new_alt) > -1 or m:frame() ~= 0 then
-            gcs:send_text(0, string.format("Fixing WP[%u] d=%.0f alt %.1f->%.1f", i, dist, current_alt, new_alt))
-            m:z(new_alt)
-            m:frame(0)
-            mission:set_item(i, m)
-         end
-      end
-   end
-end
--- see if mission is setup for auto-creation
-function create_mission_check()
-   if mission:num_commands() ~= 4 then
-      return false
-   end
-   if mission:get_item(1):command() ~= NAV_LAND or mission:get_item(2):command() ~= NAV_LAND then
-      return false
-   end
-   if mission:get_item(3):command() ~= DO_LAND_START then
-      return false
-   end
-   return true
-end
-
-function loc_copy(loc)
-   local loc2 = Location()
-   loc2:lat(loc:lat())
-   loc2:lng(loc:lng())
-   loc2:alt(loc:alt())
-   return loc2
-end
-
--- set wp location
-function wp_setloc(wp, loc)
-   wp:x(loc:lat())
-   wp:y(loc:lng())
-   wp:z(loc:alt()*0.01)
-end
-
--- get wp location
-function wp_getloc(wp)
-   local loc = Location()
-   loc:lat(wp:x())
-   loc:lng(wp:y())
-   loc:alt(math.floor(wp:z()*100))
-   return loc
-end
-
--- shift a wp in polar coordinates
-function wp_offset(wp, ang1, dist1)
-   local loc = wp_getloc(wp)
-   loc:offset_bearing(ang1,dist1)
-   wp:x(loc:lat())
-   wp:y(loc:lng())
-end
-
--- copy and shift a location
-function loc_shift(loc,angle,dist)
-   local loc2 = Location()
-   loc2:lat(loc:lat())
-   loc2:lng(loc:lng())
-   loc2:alt(loc:alt())
-   loc2:offset_bearing(angle,dist)
-   return loc2
-end
-
--- add a waypoint to the end
-function wp_add(loc,ctype,param1,param2)
-   local wp = mavlink_mission_item_int_t()
-   wp_setloc(wp,loc)
-   wp:command(ctype)
-   local seq = mission:num_commands()
-   wp:seq(seq)
-   wp:param1(param1)
-   wp:param2(param2)
-   mission:set_item(seq,wp)
-end
-
--- adjust approach distance based on glide slope and location of LAND1
--- and DO_LAND_START
-function adjust_approach_dist(land1_loc, dls_loc, angle)
-   local alt_change = (dls_loc:alt() - land1_loc:alt()) * 0.01
-   local target_dist = 1.3 * GLIDE_SLOPE * alt_change
-   gcs:send_text(0, string.format("alt_change=%.2f target_dist=%.2f", alt_change, target_dist))
-
-   -- converge on correct approach distance
-   local dist
-   for i = 1, 10 do
-      local loc2 = loc_shift(land1_loc, angle, APPROACH_DIST_MAX)
-      dist = land1_loc:get_distance(loc2) + loc2:get_distance(dls_loc)
-      APPROACH_DIST_MAX = APPROACH_DIST_MAX * target_dist / dist
-   end
-   gcs:send_text(0, string.format("app_dist=%.2f dist=%.2f target_dist=%.2f", APPROACH_DIST_MAX, dist, target_dist))
-end
-
-function create_pattern(wp, basepos, angle, base_angle, runway_length)
-
-   local jump_target = mission:num_commands() + 3
-
-   wp:command(NAV_WAYPOINT)
-   local loc = loc_copy(basepos)
-   loc:offset_bearing(angle,APPROACH_DIST_MAX)
-   loc:offset_bearing(base_angle,BASE_DIST)
-   wp_add(loc,NAV_WAYPOINT,0,0)
-
-   loc = loc_copy(basepos)
-   loc:offset_bearing(angle,APPROACH_DIST_MAX)
-   wp_add(loc,NAV_WAYPOINT,0,0)
-
-   loc = loc_copy(basepos)
-   loc:offset_bearing(angle,runway_length*1.2)
-   wp_add(loc,NAV_WAYPOINT,0,0)
-
-   loc = loc_copy(basepos)
-   wp_add(loc,NAV_LAND,0,0)
-
-   local step = runway_length*STEP_RATIO
-   NUM_ALTERNATES = math.min(70,math.floor((APPROACH_DIST_MAX - runway_length*1.5) / step))
-
-   gcs:send_text(0, string.format("NUM_ALTERNATES=%u", NUM_ALTERNATES))
-
-   for i = 1, NUM_ALTERNATES do
-      loc = Location()
-      wp_add(loc,DO_JUMP,jump_target,-1)
-
-      loc = loc_copy(basepos)
-      loc:offset_bearing(angle,APPROACH_DIST_MAX - step*i)
-      loc:offset_bearing(base_angle,BASE_DIST)
-      wp_add(loc,NAV_WAYPOINT,0,0)
-
-      loc = loc_copy(basepos)
-      loc:offset_bearing(angle,APPROACH_DIST_MAX - step*i)
-      wp_add(loc,NAV_WAYPOINT,0,0)
-   end
-
-   loc = Location()
-   wp_add(loc,DO_JUMP,jump_target,-1)
-end
-
--- auto-create mission
-function create_mission()
-   gcs:send_text(0, string.format("creating mission"))
-   local land1_loc = get_location(1)
-   local land2_loc = get_location(2)
-   local dls = mission:get_item(3)
-   local dls_loc = get_location(3)
-   local runway_length = land1_loc:get_distance(land2_loc)
-
-   local alt_agl = (dls_loc:alt() - land1_loc:alt()) * 0.01
-   if alt_agl <= 0 then
-      gcs:send_text(0, string.format("invalid altitudes"))
-      return
-   end
-
-   -- refresh glide slope
-   get_glide_slope()
-
-   local flight_dist1 = dls_loc:get_distance(land1_loc)
-   local flight_dist2 = dls_loc:get_distance(land2_loc)
-   local slope1 = flight_dist1 / alt_agl
-   local slope2 = flight_dist2 / alt_agl
-
-   if slope1 > GLIDE_SLOPE then
-      gcs:send_text(0, string.format("bad glide slope1 %.2f", slope1))
-      return
-   end
-   if slope2 > GLIDE_SLOPE then
-      gcs:send_text(0, string.format("bad glide slope2 %.2f", slope2))
-      return
-   end
-   
-
-   local bearing12 = math.deg(land1_loc:get_bearing(land2_loc))
-   local bearing21 = math.deg(land2_loc:get_bearing(land1_loc))
-   local base_angle1 = bearing12 + 90
-   local base_angle2 = bearing12 - 90
-
-   -- work out which base angle brings us closer to the DLS
-   local base_dist1 = loc_shift(land1_loc,base_angle1,10):get_distance(dls_loc)
-   local base_dist2 = loc_shift(land1_loc,base_angle2,10):get_distance(dls_loc)
-   if base_dist1 < base_dist2 then
-      base_angle = base_angle1
-   else
-      base_angle = base_angle2
-   end
-
-   adjust_approach_dist(land1_loc, dls_loc, bearing12)
-   APPROACH_DIST_MAX = math.max(APPROACH_DIST_MAX, 3*runway_length)
-
-   local wp = mission:get_item(1)
-   wp:command(NAV_WAYPOINT)
-
-   mission:clear()
-
-   -- setup home
-   wp_add(dls_loc,NAV_WAYPOINT,0,0)
-
-   -- setup DLS1
-   wp_add(dls_loc,DO_LAND_START,0,0)
-
-   -- first pattern
-   create_pattern(wp, land1_loc, bearing12, base_angle, runway_length)
-
-   adjust_approach_dist(land2_loc, dls_loc, bearing21)
-   APPROACH_DIST_MAX = math.max(APPROACH_DIST_MAX, 3*runway_length)
-   
-   -- setup DLS2
-   wp_add(dls_loc,DO_LAND_START,0,0)
-
-   -- second pattern
-   create_pattern(wp, land2_loc, bearing21, base_angle, runway_length)
-
-   fix_WP_heights()
-end
 
 -- init system
-function init()
-   button_state = button:get_button_state(button_number)
+local function init()
    get_landing_AMSL()
    get_glide_slope()
 
@@ -735,7 +513,7 @@ local AIRSPEED_SCHEDULE_MPH = {
    130
 }
 
-function airspeed_update(dt)
+local function airspeed_update(dt)
    local stage = math.floor(dt / 30.0)
    stage = math.min(stage, #AIRSPEED_SCHEDULE_MPH-1)
    local spd_mph = AIRSPEED_SCHEDULE_MPH[stage+1]
@@ -747,7 +525,7 @@ function airspeed_update(dt)
    end
 end
 
-function update()
+local function update()
    if not done_init then
       init()
    end
@@ -756,9 +534,7 @@ function update()
       notify:handle_rgb(255,255,255,10)
       return
    end
-   if create_mission_check() then
-      create_mission()
-   end
+
    local t = 0.001 * millis():tofloat()
 
    local state
@@ -805,20 +581,20 @@ function update()
    end
 end
 
-function set_fault_led()
+local function set_fault_led()
    -- setup LED for lua fault condition
    notify:handle_rgb(255,255,0,2)
 end
 
 -- wrapper around update(). This calls update() at 10Hz
 -- and if update faults then an error is displayed, but the script is not stopped
-function protected_wrapper()
+local function protected_wrapper()
   local success, err = pcall(update)
   if not success then
      gcs:send_text(0, "Internal Error: " .. err)
      -- when we fault we run the update function again after 1s, slowing it
      -- down a bit so we don't flood the console with errors
-     local success, err = pcall(set_fault_led)
+     pcall(set_fault_led)
      return protected_wrapper, 1000
   end
   -- otherwise run at 10Hz
