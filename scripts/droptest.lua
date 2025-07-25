@@ -36,6 +36,7 @@ local ENABLE_LOGGING = false
 local logfile = nil
 
 local function logit(txt)
+   gcs:send_text(0, txt)
    if not ENABLE_LOGGING then
       return
    end
