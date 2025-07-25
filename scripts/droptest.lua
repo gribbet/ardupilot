@@ -51,10 +51,10 @@ local function logit(txt)
    logfile:flush()
 end
 
-DO_JUMP = 177
 NAV_WAYPOINT = 16
 NAV_LAND = 21
 DO_LAND_START = 189
+JUMP_TAG = 600
 
 -- see if we are running on SITL
 local is_SITL = param:get('SIM_SPEEDUP')
@@ -104,8 +104,6 @@ local function get_landing_AMSL()
    for i = 1, N - 1 do
       local m = mission:get_item(i)
       if m ~= nil and m:command() == NAV_LAND then
-         local loc = get_location(i)
-         ahrs:set_home(loc)
          LANDING_AMSL = m:z()
          return
       end
@@ -140,11 +138,8 @@ local function feet(m)
    return m * 3.2808399
 end
 
-local function wrap_180(angle)
-   if angle > 180 then
-      angle = angle - 360.0
-   end
-   return angle
+local function normalize_angle(angle)
+   return ((((angle + math.pi) % (2 * math.pi)) + 2 * math.pi) % (2 * math.pi)) - math.pi
 end
 
 local function right_direction(cnum)
@@ -153,9 +148,9 @@ local function right_direction(cnum)
       return false
    end
    local loc2 = get_location(cnum)
-   local gcrs = wrap_180(ground_course())
-   local gcrs2 = wrap_180(math.deg(loc:get_bearing(loc2)))
-   local err = wrap_180(gcrs2 - gcrs)
+   local gcrs = ground_course()
+   local gcrs2 = math.deg(loc:get_bearing(loc2))
+   local err = normalize_angle(gcrs2 - gcrs)
    local dist = loc:get_distance(loc2)
    if dist < 100 then
       -- too close
@@ -171,17 +166,8 @@ end
 
 -- return true if cnum is a candidate for wp selection
 local function is_candidate(cnum)
-   local N = mission:num_commands()
-   if cnum > N - 3 then
-      return false
-   end
-   local m = mission:get_item(cnum)
-   local m2 = mission:get_item(cnum + 1)
-   local m3 = mission:get_item(cnum + 2)
-   if m ~= nil and m:command() == NAV_WAYPOINT and m2 ~= nil and m2:command() == NAV_WAYPOINT and m3 ~= nil and (m3:command() == DO_JUMP or m3:command() == NAV_WAYPOINT or m3:command() == NAV_LAND) then
-      return true
-   end
-   return false
+   local m = mission:get_item(cnum - 1)
+   return m ~= nil and m:command() == JUMP_TAG
 end
 
 
@@ -272,7 +258,7 @@ local function wind_adjustment(loc1, loc2)
 end
 
 local function turn_adjustment(bearing_change_deg)
-   local height_loss = TURN_HEIGHT_LOSS * math.abs(bearing_change_deg / 180.0)
+   local height_loss = TURN_HEIGHT_LOSS * math.abs(normalize_angle(bearing_change_deg) / 180.0)
    return height_loss * GLIDE_SLOPE
 end
 
@@ -298,14 +284,12 @@ local function distance_to_land_nopos(cnum)
 
       distance = distance + d1
 
-      -- gcs:send_text(0, string.format("WP%u->WP%u d=%.0f dist=%.0f", i, i2, d1, distance))
-
       -- account for height lost in turns
-      local bearing = wrap_180(math.deg(loc1:get_bearing(loc2)))
+      local bearing = loc1:get_bearing(loc2)
       if i == cnum then
          last_bearing = bearing
       end
-      local bearing_change = math.abs(wrap_180(bearing - last_bearing))
+      local bearing_change = bearing - last_bearing
       last_bearing = bearing
       distance = distance + turn_adjustment(bearing_change)
 
@@ -330,9 +314,9 @@ local function distance_to_land(cnum)
    local distance = loc:get_distance(loc1)
    distance = distance + wind_adjustment(loc, loc1)
 
-   local gcrs = wrap_180(ground_course())
-   local wpcrs = wrap_180(math.deg(loc:get_bearing(loc1)))
-   local bearing_error = math.abs(wrap_180(gcrs - wpcrs))
+   local gcrs = ground_course()
+   local wpcrs = math.deg(loc:get_bearing(loc1))
+   local bearing_error = gcrs - wpcrs
 
    distance = distance + turn_adjustment(bearing_error)
 
@@ -411,11 +395,14 @@ local function mission_update()
       return false
    end
 
+
    local t = 0.001 * millis():tofloat()
    if t - last_wp_change_t < 5 then
       -- don't change too rapidly
       return
    end
+
+
 
    -- look for alternatives
    local N = mission:num_commands()
