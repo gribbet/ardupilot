@@ -258,7 +258,6 @@ local function wind_adjustment(loc1, loc2)
 end
 
 local function turn_adjustment(bearing_change_deg)
-   gcs:send_text(0, string.format("Blah %.2f", normalize_angle(bearing_change_deg)))
    local height_loss = TURN_HEIGHT_LOSS * math.abs(normalize_angle(bearing_change_deg) / 180.0)
    return height_loss * GLIDE_SLOPE
 end
