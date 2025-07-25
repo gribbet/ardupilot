@@ -104,6 +104,8 @@ local function get_landing_AMSL()
    for i = 1, N - 1 do
       local m = mission:get_item(i)
       if m ~= nil and m:command() == NAV_LAND then
+         local loc = get_location(i)
+         ahrs:set_home(loc)
          LANDING_AMSL = m:z()
          return
       end
