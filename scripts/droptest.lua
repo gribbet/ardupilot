@@ -36,7 +36,7 @@ local ENABLE_LOGGING = false
 local logfile = nil
 
 local function logit(txt)
-   gcs:send_text(0, txt)
+   --gcs:send_text(0, txt)
    if not ENABLE_LOGGING then
       return
    end
@@ -139,7 +139,7 @@ local function feet(m)
 end
 
 local function normalize_angle(angle)
-   return ((((angle + 180) % 360) + 360) % (360)) - 180
+   return (((angle + 180) % 360) + 360) % 360 - 180
 end
 
 local function right_direction(cnum)
@@ -258,6 +258,7 @@ local function wind_adjustment(loc1, loc2)
 end
 
 local function turn_adjustment(bearing_change_deg)
+   gcs:send_text(0, string.format("Blah %.2f", normalize_angle(bearing_change_deg)))
    local height_loss = TURN_HEIGHT_LOSS * math.abs(normalize_angle(bearing_change_deg) / 180.0)
    return height_loss * GLIDE_SLOPE
 end
@@ -282,19 +283,20 @@ local function distance_to_land_nopos(cnum)
 
       local d1 = loc1:get_distance(loc2)
 
-      distance = distance + d1
-
-      -- account for height lost in turns
-      local bearing = math.deg(loc1:get_bearing(loc2))
-      if i == cnum then
+      if d1 > 1 then
+         distance = distance + d1
+         -- account for height lost in turns
+         local bearing = math.deg(loc1:get_bearing(loc2))
+         if i == cnum then
+            last_bearing = bearing
+         end
+         local bearing_change = bearing - last_bearing
          last_bearing = bearing
-      end
-      local bearing_change = bearing - last_bearing
-      last_bearing = bearing
-      distance = distance + turn_adjustment(bearing_change)
+         distance = distance + turn_adjustment(bearing_change)
 
-      -- account for wind
-      distance = distance + wind_adjustment(loc1, loc2)
+         -- account for wind
+         distance = distance + wind_adjustment(loc1, loc2)
+      end
 
       i = i2
    end
@@ -434,7 +436,7 @@ local function release_trigger()
    vehicle:set_mode(MODE_AUTO)
    arming:arm_force()
    if mission:num_commands() > 2 then
-      mission:set_current_cmd(2)   -- ?
+      mission:set_current_cmd(2) -- ?
    end
    notify:handle_rgb(0, 255, 0, 0)
 end
