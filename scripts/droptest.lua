@@ -139,7 +139,7 @@ local function feet(m)
 end
 
 local function normalize_angle(angle)
-   return ((((angle + math.pi) % (2 * math.pi)) + 2 * math.pi) % (2 * math.pi)) - math.pi
+   return ((((angle + 180) % 360) + 360) % (360)) - 180
 end
 
 local function right_direction(cnum)
@@ -285,7 +285,7 @@ local function distance_to_land_nopos(cnum)
       distance = distance + d1
 
       -- account for height lost in turns
-      local bearing = loc1:get_bearing(loc2)
+      local bearing = math.deg(loc1:get_bearing(loc2))
       if i == cnum then
          last_bearing = bearing
       end
@@ -434,7 +434,7 @@ local function release_trigger()
    vehicle:set_mode(MODE_AUTO)
    arming:arm_force()
    if mission:num_commands() > 2 then
-      mission:set_current_cmd(2) -- ?
+      mission:set_current_cmd(2)   -- ?
    end
    notify:handle_rgb(0, 255, 0, 0)
 end
