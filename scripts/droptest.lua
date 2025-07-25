@@ -85,7 +85,6 @@ end
 
 
 local function get_position()
-   gcs:send_text(0, type(gps))
    local loc = ahrs:get_position()
    if not loc then
       loc = gps:location(0)
@@ -115,7 +114,6 @@ end
 
 -- return ground course in degrees
 local function ground_course()
-   if type(gps) ~= "table" then return 0 end
    if gps:status(0) >= 3 and gps:ground_speed(0) > 20 then
       return gps:ground_course(0)
    end
@@ -455,7 +453,6 @@ local function release_trigger()
 end
 
 local function set_standby()
-   if type(gps) ~= "table" then return end
    local mode = vehicle:get_mode()
    if mode ~= MODE_MANUAL then
       gcs:send_text(0, string.format("forcing standby MANUAL"))
