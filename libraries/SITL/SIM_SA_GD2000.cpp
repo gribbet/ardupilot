@@ -46,13 +46,13 @@ const AP_Param::GroupInfo SA_GD2000::var_info[] = {
     // @DisplayName: launch velocity
     // @Description: launch velocity
     // @Units: m/s
-    AP_GROUPINFO("VEL",     2, SA_GD2000,  params.launch_vel, 10),
+    AP_GROUPINFO("VEL",     3, SA_GD2000,  params.launch_vel, 10),
 
     // @Param: DIR
     // @DisplayName: launch direction
     // @Description: launch direction
     // @Units: degrees
-    AP_GROUPINFO("DIR",     2, SA_GD2000,  params.launch_dir, 0),
+    AP_GROUPINFO("DIR",     4, SA_GD2000,  params.launch_dir, 0),
 
     AP_GROUPEND
 };
