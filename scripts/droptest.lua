@@ -35,6 +35,8 @@ local release_t = 0
 local ENABLE_LOGGING = false
 local logfile = nil
 
+local button_state = false
+
 local function logit(txt)
    --gcs:send_text(0, txt)
    if not ENABLE_LOGGING then
@@ -284,6 +286,9 @@ local function distance_to_land_nopos(cnum)
 
       if d1 > 1 then
          distance = distance + d1
+
+         -- gcs:send_text(0, string.format("WP%u->WP%u d=%.0f dist=%.0f", i, i2, d1, distance))
+
          -- account for height lost in turns
          local bearing = math.deg(loc1:get_bearing(loc2))
          if i == cnum then
@@ -476,6 +481,7 @@ end
 
 -- init system
 local function init()
+   button_state = button:get_button_state(button_number)
    get_landing_AMSL()
    get_glide_slope()
 
@@ -489,9 +495,7 @@ end
 --]]
 local AIRSPEED_SCHEDULE_MPH = {
    140,
-   135,
    130,
-   125,
    120,
    130
 }
@@ -528,7 +532,6 @@ local function update()
       state = button:get_button_state(button_number)
    end
 
-   local button_state = button:get_button_state(button_number)
    if state ~= button_state then
       -- gcs:send_text(0, string.format("release: " .. tostring(state)))
       button_state = state
