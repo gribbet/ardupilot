@@ -490,28 +490,6 @@ local function init()
    done_init = true
 end
 
---[[
-   airspeed schedule in 30s steps, stops on final airspeed
---]]
-local AIRSPEED_SCHEDULE_MPH = {
-   140,
-   130,
-   120,
-   130
-}
-
-local function airspeed_update(dt)
-   local stage = math.floor(dt / 30.0)
-   stage = math.min(stage, #AIRSPEED_SCHEDULE_MPH - 1)
-   local spd_mph = AIRSPEED_SCHEDULE_MPH[stage + 1]
-   local spd_mps = spd_mph * 0.44704
-   if TARGET_AIRSPEED ~= spd_mps then
-      gcs:send_text(0, string.format("Target airspeed %.1f mph", spd_mph))
-      param:set('AIRSPEED_CRUISE', spd_mps)
-      TARGET_AIRSPEED = spd_mps
-   end
-end
-
 local function update()
    if not done_init then
       init()
@@ -561,9 +539,6 @@ local function update()
       last_mission_update_t = t
       notify:handle_rgb(0, 255, 0, 0)
       mission_update()
-      if release_t > 0 then
-         airspeed_update(t - release_t)
-      end
    end
 end
 
