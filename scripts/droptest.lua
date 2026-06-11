@@ -63,6 +63,16 @@ local is_SITL = param:get('SIM_SPEEDUP')
 
 local TARGET_AIRSPEED = param:get('AIRSPEED_CRUISE')
 
+local function eas2tas_for_alt_amsl(alt_amsl)
+   -- 1976 standard atmosphere troposphere approximation, valid below 11km AMSL
+   local temp_ratio = 1.0 - 0.0065 * alt_amsl / 288.15
+   if temp_ratio <= 0 then
+      return 1.0
+   end
+   local density_ratio = temp_ratio ^ 4.25588
+   return 1.0 / math.sqrt(density_ratio)
+end
+
 local function get_glide_slope()
    GLIDE_SLOPE = param:get('SCR_USER2') or 0
    if GLIDE_SLOPE <= 0 then
@@ -255,7 +265,13 @@ local function wind_adjustment(loc1, loc2)
    local dot = vec2_dot(distNE, wind2d)
    dot = constrain(dot, -MAX_WIND, MAX_WIND)
 
-   local change = -dot / TARGET_AIRSPEED
+   local alt_amsl = 0.5 * (loc1:alt() + loc2:alt()) * 0.01
+   local target_tas = TARGET_AIRSPEED * eas2tas_for_alt_amsl(alt_amsl)
+   if target_tas <= 0 then
+      return 0.0
+   end
+
+   local change = -dot / target_tas
    return dist * change
 end
 
