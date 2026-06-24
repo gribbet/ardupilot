@@ -586,6 +586,7 @@ def configure(cfg):
 
     cfg.recurse('libraries/AP_GPS')
     cfg.recurse('libraries/AP_HAL_SITL')
+    cfg.recurse('libraries/AP_HAL_WASM')
     cfg.recurse('libraries/SITL')
 
     cfg.recurse('libraries/AP_Networking')

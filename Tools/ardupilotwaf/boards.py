@@ -1780,3 +1780,133 @@ class QURT(Board):
         # get name of class
         return self.__class__.__name__
     
+
+class wasm(sitl):
+    """
+    Emscripten/WASM build.  Compiles ArduPlane to a .wasm + .js ES module.
+    CONFIG_HAL_BOARD is intentionally kept as HAL_BOARD_SITL so that all SITL
+    simulation code compiles unchanged.  AP_HAL_WASM=1 is a secondary flag
+    that selects the thin shim in libraries/AP_HAL_WASM/ which replaces the
+    serial-0/MAVLink channel with a JS-callable ring-buffer driver.
+
+    Usage:
+        ./waf configure --board wasm
+        ./waf --target bin/arduplane
+    Output: build/wasm/bin/arduplane.js  +  arduplane.wasm
+
+    The host page calls:
+        ardupilot_serial0_write(ptr, len)          // JS -> autopilot (MAVLink in)
+        ardupilot_serial0_read(ptr, maxLen) -> n   // JS <- autopilot (MAVLink out)
+        ardupilot_serial0_read_available()  -> n
+
+    Threading model: PROXY_TO_PTHREAD - the ArduPlane main loop runs in a Web
+    Worker (pthread), keeping the browser UI thread responsive.  Requires the
+    serving origin to set:
+        Cross-Origin-Opener-Policy: same-origin
+        Cross-Origin-Embedder-Policy: require-corp
+    """
+
+    toolchain = 'emscripten'
+
+    def __init__(self):
+        self.with_can = False
+
+    def configure_env(self, cfg, env):
+        super(wasm, self).configure_env(cfg, env)
+
+        # Secondary flag: all SITL sources still compile (CONFIG_HAL_BOARD
+        # remains HAL_BOARD_SITL); AP_HAL_WASM gates the shim code.
+        env.DEFINES['AP_HAL_WASM'] = 1
+
+        env.DEFINES['HAL_CAN_WITH_SOCKETCAN'] = 0
+
+        # Add the thin WASM HAL shim on top of SITL
+        env.AP_LIBRARIES += ['AP_HAL_WASM']
+
+        # Browser WASM uses the AP_HAL_WASM serial bridge; avoid generic SITL
+        # socket networking, which triggers unsupported Emscripten syscalls.
+        env.CXXFLAGS = [f for f in env.CXXFLAGS if 'AP_NETWORKING_ENABLED' not in f]
+        env.CXXFLAGS += ['-DAP_NETWORKING_ENABLED=0']
+        env.CXXFLAGS += ['-DAP_RCPROTOCOL_UDP_ENABLED=0']
+
+        # -fsingle-precision-constant is a GCC extension; Clang/emcc ignores it
+        # silently, which breaks the static_assert in AP_Common.cpp.  Remove it
+        # from both flag lists - double-precision constants are fine on WASM.
+        env.CFLAGS = [f for f in env.CFLAGS if f != '-fsingle-precision-constant']
+        env.CXXFLAGS = [f for f in env.CXXFLAGS if f != '-fsingle-precision-constant']
+
+        # Emscripten uses clang++, so drop GCC-only warning suppressions and
+        # add the clang-side C++ suppressions SITL normally only applies to C.
+        env.CFLAGS = [f for f in env.CFLAGS if f != '-Wno-format-contains-nul']
+        env.CXXFLAGS = [f for f in env.CXXFLAGS if f != '-Wno-format-contains-nul']
+        env.CFLAGS += [
+            '-Wno-c99-designator',
+            '-Wno-gnu-folding-constant',
+            '-Wno-ignored-pragmas',
+            '-Wno-implicit-const-int-float-conversion',
+            '-Wno-macro-redefined',
+            '-Wno-unknown-warning-option',
+        ]
+        env.CXXFLAGS += [
+            '-Wno-absolute-value',
+            '-Wno-array-parameter',
+            '-Wno-c++11-narrowing',
+            '-Wno-c++17-attribute-extensions',
+            '-Wno-c++17-extensions',
+            '-Wno-dangling-gsl',
+            '-Wno-c99-designator',
+            '-Wno-gnu-designator',
+            '-Wno-gnu-folding-constant',
+            '-Wno-gnu-variable-sized-type-not-at-end',
+            '-Wno-ignored-pragmas',
+            '-Wno-implicit-const-int-float-conversion',
+            '-Wno-macro-redefined',
+            '-Wno-main',
+            '-Wno-missing-braces',
+            '-Wno-mismatched-tags',
+            '-Wno-non-c-typedef-for-linkage',
+            '-Wno-pessimizing-move',
+            '-Wno-unknown-warning-option',
+            '-Wno-tautological-constant-out-of-range-compare',
+            '-Wno-tautological-undefined-compare',
+            '-Wno-unused-but-set-variable',
+            '-Wno-unused-private-field',
+            '-Wno-vla-cxx-extension'
+        ]
+
+        # Clang is stricter than GCC about some warning classes that are treated
+        # as errors in the SITL flags.  Downgrade them to warnings for WASM.
+        env.CXXFLAGS += [
+            '-Wno-error=unused-but-set-variable',
+            '-Wno-error=unused-variable',
+        ]
+
+        # Output a .js ES module (the paired .wasm is emitted automatically)
+        env.cxxprogram_PATTERN = '%s.js'
+
+        wasm_exported = [
+            '_ardupilot_serial0_write',
+            '_ardupilot_serial0_read',
+            '_ardupilot_serial0_read_available',
+            '_malloc',
+            '_free',
+        ]
+
+        # Emscripten requires -sUSE_PTHREADS=1 at COMPILE time too, so that
+        # every object file is built with -matomics and -mbulk-memory.  Without
+        # this the linker rejects objects with --shared-memory.
+        env.CXXFLAGS += ['-sUSE_PTHREADS=1']
+        env.CFLAGS += ['-sUSE_PTHREADS=1']
+
+        env.LINKFLAGS += [
+            '-sWASM=1',
+            '-sUSE_PTHREADS=1',
+            '-sPROXY_TO_PTHREAD=1',
+            '-sPTHREAD_POOL_SIZE=4',
+            '-sMODULARIZE=1',
+            '-sEXPORT_ES6=1',
+            '-sEXPORTED_RUNTIME_METHODS=["ccall","cwrap","HEAPU8","FS"]',
+            '-sEXPORTED_FUNCTIONS=["%s"]' % '","'.join(wasm_exported),
+            '-sALLOW_MEMORY_GROWTH=1',
+            '-sFORCE_FILESYSTEM=1',
+        ]

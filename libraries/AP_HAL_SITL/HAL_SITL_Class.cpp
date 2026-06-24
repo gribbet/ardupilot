@@ -311,6 +311,7 @@ void HAL_SITL::actually_reboot()
     AP_HAL::panic("PANIC: REBOOT FAILED: %s", strerror(errno));
 }
 
+#ifndef AP_HAL_WASM
 static HAL_SITL hal_sitl_inst;
 
 const AP_HAL::HAL& AP_HAL::get_HAL() {
@@ -320,5 +321,6 @@ const AP_HAL::HAL& AP_HAL::get_HAL() {
 AP_HAL::HAL& AP_HAL::get_HAL_mutable() {
     return hal_sitl_inst;
 }
+#endif // AP_HAL_WASM
 
 #endif  // CONFIG_HAL_BOARD == HAL_BOARD_SITL

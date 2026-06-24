@@ -4,6 +4,10 @@
 
 #if AP_SIM_ENABLED
 
+#ifdef AP_HAL_WASM
+#include <sys/time.h>
+#endif
+
 #include <AP_Math/AP_Math.h>
 #include <GCS_MAVLink/GCS_MAVLink.h>
 #include <AP_Baro/AP_Baro.h>
