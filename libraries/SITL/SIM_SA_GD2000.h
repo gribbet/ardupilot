@@ -54,6 +54,7 @@ private:
         AP_Float launch_alt;
         AP_Float launch_vel;
         AP_Float launch_dir;
+        AP_Float turn_sink;
     } params;
 
     /*
