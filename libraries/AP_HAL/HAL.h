@@ -143,7 +143,7 @@ public:
 
     static constexpr uint8_t num_serial = 10;
 
-private:
+protected:
     // UART drivers in SERIALn_ order
     AP_HAL::UARTDriver* serial_array[num_serial];
 

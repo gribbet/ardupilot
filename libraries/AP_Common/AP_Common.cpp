@@ -23,7 +23,9 @@
 extern const AP_HAL::HAL& hal;
 
 /* assert that const vals are float, not double. so 100.0 means 100.0f */
+#ifndef AP_HAL_WASM // Clang/emcc does not support -fsingle-precision-constant
 static_assert(sizeof(1e6) == sizeof(float), "Compilation needs to use single-precision constants");
+#endif
 
 /*
   Return true if value is between lower and upper bound inclusive.

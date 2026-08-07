@@ -42,6 +42,25 @@ const AP_Param::GroupInfo SA_GD2000::var_info[] = {
     // @Units: m
     AP_GROUPINFO("ALT",     2, SA_GD2000,  params.launch_alt, 3810), // 3810m == 12500 ft
 
+    // @Param: VEL
+    // @DisplayName: launch velocity
+    // @Description: launch velocity
+    // @Units: m/s
+    AP_GROUPINFO("VEL",     3, SA_GD2000,  params.launch_vel, 10),
+
+    // @Param: DIR
+    // @DisplayName: launch direction
+    // @Description: launch direction
+    // @Units: degrees
+    AP_GROUPINFO("DIR",     4, SA_GD2000,  params.launch_dir, 0),
+
+    // @Param: YLOSS
+    // @DisplayName: altitude loss per turn degree
+    // @Description: Additional altitude loss in meters per degree of heading change
+    // @Units: m/deg
+    // @Range: 0 5
+    AP_GROUPINFO("YLOSS",   5, SA_GD2000,  params.turn_sink, 1.0),
+
     AP_GROUPEND
 };
 
@@ -90,7 +109,8 @@ void SA_GD2000::update(const struct sitl_input &input)
     if (!has_launched) {
         // we're in a pre-launch state cruising in the launch vehicle (like a C-130)
         position.z = -1 * params.launch_alt; // 3810 == 12500ft 
-        velocity_ef.x = 10;
+        velocity_ef.x = cos(radians(params.launch_dir)) * params.launch_vel;
+        velocity_ef.y = sin(radians(params.launch_dir)) * params.launch_vel;
 
         if (hal.util->get_soft_armed()) {
             has_launched = true;
@@ -98,6 +118,19 @@ void SA_GD2000::update(const struct sitl_input &input)
     }
 
     Plane::update(input);
+
+    if (has_launched && is_positive(params.turn_sink.get())) {
+        // Add an explicit turn-loss term: meters lost per degree of heading change.
+        const float dt = frame_time_us * 1.0e-6f;
+        if (is_positive(dt)) {
+            const float turn_deg = fabsf(degrees(gyro.z)) * dt;
+            if (is_positive(turn_deg)) {
+                const float alt_loss = params.turn_sink * turn_deg;
+                position.z += alt_loss;
+                update_position();
+            }
+        }
+    }
 
     // constrain accelerations
     accel_body.x = constrain_float(accel_body.x, -16*GRAVITY_MSS, 16*GRAVITY_MSS);

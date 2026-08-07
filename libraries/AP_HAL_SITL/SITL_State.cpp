@@ -67,7 +67,7 @@ void SITL_State::_set_param_default(const char *parm)
  */
 void SITL_State::_sitl_setup()
 {
-#if !defined(__CYGWIN__) && !defined(__CYGWIN64__)
+#if !defined(__CYGWIN__) && !defined(__CYGWIN64__) && !defined(AP_HAL_WASM)
     _parent_pid = getppid();
 #endif
 
@@ -121,9 +121,11 @@ void SITL_State::_fdm_input_step(void)
     _fdm_input_local();
 
     /* make sure we die if our parent dies */
+#ifndef AP_HAL_WASM
     if (kill(_parent_pid, 0) != 0) {
         exit(1);
     }
+#endif
 
     if (_scheduler->interrupts_are_blocked() || _sitl == nullptr) {
         return;

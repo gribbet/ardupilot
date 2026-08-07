@@ -8,7 +8,7 @@
 
 
 #ifndef AP_NETWORKING_ENABLED
-#if !defined(__APPLE__) && defined(__clang__)
+#if !defined(__APPLE__) && defined(__clang__) && !defined(AP_HAL_WASM)
 // clang fails on linux
 #define AP_NETWORKING_ENABLED 0
 #else

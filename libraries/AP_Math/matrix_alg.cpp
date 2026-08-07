@@ -20,7 +20,7 @@
 #include "AP_Math.h"
 
 #include <stdio.h>
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && !defined(AP_HAL_WASM)
 #include <fenv.h>
 #endif
 
@@ -286,7 +286,7 @@ static bool inverse4x4(const T m[],T invOut[])
     T inv[16], det;
     uint16_t i;
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && !defined(AP_HAL_WASM)
     //disable FE_INEXACT detection as it fails on mac os runs
     int old = fedisableexcept(FE_INEXACT | FE_OVERFLOW);
     if (old < 0) {
@@ -417,7 +417,7 @@ static bool inverse4x4(const T m[],T invOut[])
     for (i = 0; i < 16; i++)
         invOut[i] = inv[i] * det;
     
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && !defined(AP_HAL_WASM)
     if (old >= 0 && feenableexcept(old) < 0) {
         // hal.console->printf("inverse4x4(): warning: error on restoring floating exception mask\n");
     }
