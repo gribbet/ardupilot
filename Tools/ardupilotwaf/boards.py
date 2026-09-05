@@ -892,7 +892,7 @@ class SITLBoard(Board):
         # wrap malloc to ensure memory is zeroed
         if cfg.env.DEST_OS == 'cygwin':
             pass # handled at runtime in libraries/AP_Common/c++.cpp
-        elif platform.system() != 'Darwin' and cfg.env.TOOLCHAIN != 'emscripten':
+        elif platform.system() != 'Darwin':
             env.LINKFLAGS += ['-Wl,--wrap,malloc']
         
         if cfg.options.enable_sfml:
