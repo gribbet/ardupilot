@@ -174,6 +174,9 @@ permissions:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      actions: write
     runs-on: ubuntu-22.04
     container: ardupilot/ardupilot-dev-base:v0.2.0
 
@@ -182,8 +185,9 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Cache Emscripten SDK
-        uses: actions/cache@v5
+      - name: Restore Emscripten SDK
+        id: restore-emsdk
+        uses: actions/cache/restore@v5
         with:
           path: ~/emsdk
           key: emsdk-${{ runner.os }}-6.0.8
@@ -201,3 +205,10 @@ jobs:
           ./waf build --target bin/arduplane
           test -f build/wasm/bin/arduplane.js
           test -f build/wasm/bin/arduplane.wasm
+
+      - name: Save Emscripten SDK
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push' && steps.restore-emsdk.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/emsdk
+          key: emsdk-${{ runner.os }}-6.0.8
