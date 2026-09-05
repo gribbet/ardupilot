@@ -1642,7 +1642,7 @@ class WASMBoard(SITLBoard):
             '-sPTHREAD_POOL_SIZE=4',
             '-sEXPORT_ES6=1',
             '-sINCOMING_MODULE_JS_API=["arguments","locateFile","mainScriptUrlOrBlob","preRun","print","printErr","wasmBinary","wasmMemory"]',
-            '-sEXPORTED_RUNTIME_METHODS=["cwrap", "HEAPU8","FS"]',
+            '-sEXPORTED_RUNTIME_METHODS=["cwrap","HEAPU8","FS"]',
             '-sALLOW_MEMORY_GROWTH=1',
         ]
 
