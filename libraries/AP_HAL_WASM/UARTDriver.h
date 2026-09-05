@@ -12,15 +12,14 @@ extern "C" {
     size_t ardupilot_serial0_write(const uint8_t *buf, size_t len);
     size_t ardupilot_serial0_read(uint8_t *buf, size_t max_len);
     size_t ardupilot_serial0_read_available(void);
-    void *ardupilot_malloc(size_t size);
-    void ardupilot_free(void *ptr);
 }
 
 /*
  * Ring-buffer UART driver for serial0 / MAVLink.
  *
  * TX is written by the autopilot and read by JS. RX is written by JS and read
- * by the autopilot.
+ * by the autopilot. Each direction supports one producer thread and one
+ * consumer thread.
  */
 class HALWASM::UARTDriver : public AP_HAL::UARTDriver {
 public:

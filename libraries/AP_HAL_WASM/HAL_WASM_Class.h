@@ -5,6 +5,11 @@
 #include <AP_HAL_SITL/HAL_SITL_Class.h>
 #include "AP_HAL_WASM_Namespace.h"
 
+extern "C" {
+    void *ardupilot_malloc(size_t size);
+    void ardupilot_free(void *ptr);
+}
+
 /*
  * HAL_WASM extends HAL_SITL, reusing all simulation physics and drivers.
  * The constructor provides a ring-buffer driver for MAVLink/serial0 so JS can

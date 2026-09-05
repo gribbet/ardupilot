@@ -1,7 +1,5 @@
 #include <AP_HAL/AP_HAL.h>
 
-#include <emscripten/emscripten.h>
-
 #include "UARTDriver.h"
 
 using namespace HALWASM;
@@ -59,17 +57,3 @@ size_t UARTDriver::js_read_available() const
 {
     return _tx_buf.available();
 }
-
-extern "C" {
-
-    EMSCRIPTEN_KEEPALIVE void *ardupilot_malloc(size_t size)
-    {
-        return malloc(size);
-    }
-
-    EMSCRIPTEN_KEEPALIVE void ardupilot_free(void *ptr)
-    {
-        free(ptr);
-    }
-
-} // extern "C"

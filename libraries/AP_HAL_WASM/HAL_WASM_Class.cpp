@@ -26,6 +26,16 @@ extern "C" {
         return wasm_serial0.js_read_available();
     }
 
+    EMSCRIPTEN_KEEPALIVE void *ardupilot_malloc(size_t size)
+    {
+        return malloc(size);
+    }
+
+    EMSCRIPTEN_KEEPALIVE void ardupilot_free(void *ptr)
+    {
+        free(ptr);
+    }
+
 } // extern "C"
 
 HAL_WASM::HAL_WASM() :
