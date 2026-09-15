@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 
 const modulePath = process.argv[2];
 if (modulePath === undefined) {
-    throw new Error('usage: node_smoke_test.mjs <arduplane.js>');
+    throw new Error('usage: wasm_plane_smoke_test.mjs <arduplane.js>');
 }
 
 const { default: createModule } = await import(pathToFileURL(modulePath));

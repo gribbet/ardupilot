@@ -205,7 +205,7 @@ jobs:
           ./waf build --target bin/arduplane
           test -f build/wasm/bin/arduplane.js
           test -f build/wasm/bin/arduplane.wasm
-          node libraries/AP_HAL_WASM/tests/node_smoke_test.mjs build/wasm/bin/arduplane.js
+          node Tools/autotest/wasm_plane_smoke_test.mjs build/wasm/bin/arduplane.js
 
       - name: Save Emscripten SDK
         if: github.ref == 'refs/heads/master' && github.event_name == 'push' && steps.restore-emsdk.outputs.cache-hit != 'true'

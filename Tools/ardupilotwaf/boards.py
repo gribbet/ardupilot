@@ -1627,13 +1627,11 @@ class WASMBoard(SITLBoard):
             env.LINKFLAGS.remove('-Wl,--wrap,malloc')
 
         env.DEFINES.update(
-            CONFIG_HAL_BOARD_SUBTYPE = 'HAL_BOARD_SUBTYPE_SITL_WASM',
+            HAL_SITL_WASM_ENABLED = 1,
+            HAL_SITL_FEENABLE_ENABLED = 0,
             AP_NETWORKING_ENABLED = 0,
             AP_RCPROTOCOL_UDP_ENABLED = 0,
         )
-
-        # Add the thin WASM HAL shim on top of SITL
-        env.AP_LIBRARIES += ['AP_HAL_WASM']
 
         # Emscripten does not support trapping floating-point math.
         env.CFLAGS.remove('-ftrapping-math')

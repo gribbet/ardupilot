@@ -53,9 +53,6 @@ public:
 
     HALSITL::SITL_State * get_sitl_state() const { return _sitl_state; }
 
-protected:
-    explicit HAL_SITL(AP_HAL::UARTDriver *serial0);
-
 private:
     HALSITL::SITL_State *_sitl_state;
 

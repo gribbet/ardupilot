@@ -2,6 +2,7 @@
 
 namespace HALSITL {
 class UARTDriver;
+class WASMUARTDriver;
 class Scheduler;
 class SITL_State_Common;
 class SITL_State;
