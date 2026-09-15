@@ -1603,7 +1603,7 @@ class QURTBoard(Board):
 class WASMBoard(SITLBoard):
     name = 'wasm'
     toolchain = 'emscripten'
-    hwdef = 'libraries/AP_HAL_SITL/hwdef/sitl/hwdef.dat'
+    hwdef = 'libraries/AP_HAL_SITL/hwdef/wasm/hwdef.dat'
 
     def __init__(self):
         super().__init__()
@@ -1613,8 +1613,6 @@ class WASMBoard(SITLBoard):
     def configure(self, cfg):
         if cfg.options.toolchain and cfg.options.toolchain != self.toolchain:
             cfg.fatal('The wasm board requires the emscripten toolchain')
-        # SITLBoard.configure() defaults to native unless TOOLCHAIN is already set.
-        cfg.env.TOOLCHAIN = self.toolchain
         super().configure(cfg)
         cfg.env.LINKFLAGS += ['-Wl,--wrap,malloc']
 
@@ -1626,18 +1624,11 @@ class WASMBoard(SITLBoard):
         if '-Wl,--wrap,malloc' in env.LINKFLAGS:
             env.LINKFLAGS.remove('-Wl,--wrap,malloc')
 
-        env.DEFINES.update(
-            HAL_SITL_WASM_ENABLED = 1,
-            AP_NETWORKING_ENABLED = 0,
-            AP_RCPROTOCOL_UDP_ENABLED = 0,
-        )
-
         # Emscripten does not support trapping floating-point math.
         env.CFLAGS.remove('-ftrapping-math')
         env.CXXFLAGS.remove('-ftrapping-math')
 
-        # Enable compile-time pthread support for atomics and bulk-memory
-        # operations.
+        # Enable compile-time pthread support for atomics and bulk-memory operations.
         env.CFLAGS += ['-pthread']
         env.CXXFLAGS += ['-pthread']
 
@@ -1652,4 +1643,5 @@ class WASMBoard(SITLBoard):
             '-sEXPORTED_RUNTIME_METHODS=["cwrap","HEAPU8","FS"]',
             '-sALLOW_MEMORY_GROWTH=1',
         ]
+
 
