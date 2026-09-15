@@ -1603,7 +1603,6 @@ class QURTBoard(Board):
 class WASMBoard(SITLBoard):
     name = 'wasm'
     toolchain = 'emscripten'
-    hwdef = 'libraries/AP_HAL_SITL/hwdef/wasm/hwdef.dat'
 
     def __init__(self):
         super().__init__()
