@@ -26,9 +26,6 @@
 #include "DSP.h"
 #include "CANSocketIface.h"
 #include "SPIDevice.h"
-#if HAL_SITL_WASM_ENABLED
-#include "WASMUARTDriver.h"
-#endif
 
 #include <AP_BoardConfig/AP_BoardConfig.h>
 #include <AP_HAL_Empty/AP_HAL_Empty.h>
@@ -68,11 +65,7 @@ static DSP dspDriver;
 static Empty::OpticalFlow emptyOpticalFlow;
 static Empty::Flash emptyFlash;
 
-#if HAL_SITL_WASM_ENABLED
-static WASMUARTDriver sitlSerial0Driver;
-#else
 static UARTDriver sitlSerial0Driver(0, &sitlState);
-#endif
 static UARTDriver sitlSerial1Driver(1, &sitlState);
 static UARTDriver sitlSerial2Driver(2, &sitlState);
 static UARTDriver sitlSerial3Driver(3, &sitlState);
@@ -241,11 +234,7 @@ void HAL_SITL::reboot() const
 
 uint32_t HAL_SITL::wait_for_serial0_outqueue_space() const
 {
-#if HAL_SITL_WASM_ENABLED
-    return 0;
-#else
     return static_cast<HALSITL::UARTDriver*>(serial(0))->wait_for_system_outqueue_space();
-#endif
 }
 
 void HAL_SITL::run(int argc, char * const argv[], Callbacks* callbacks) const

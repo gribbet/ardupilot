@@ -7,19 +7,23 @@ if (modulePath === undefined) {
 
 const { default: createModule } = await import(pathToFileURL(modulePath));
 const module = await createModule({
-    arguments: ['--model', 'plane'],
+    arguments: [
+        '--model', 'plane',
+        '--serial0', 'wasm',
+    ],
     print: console.log,
     printErr: console.error,
 });
 
 const malloc = module.cwrap('ardupilot_malloc', 'number', ['number']);
-const read = module.cwrap('ardupilot_serial0_read', 'number', ['number', 'number']);
+const read = module.cwrap('ardupilot_serial_read', 'number', ['number', 'number', 'number']);
+const serialPort = 0;
 const bufferSize = 4096;
 const buffer = malloc(bufferSize);
 const deadline = Date.now() + 15000;
 
 while (Date.now() < deadline) {
-    const length = read(buffer, bufferSize);
+    const length = read(serialPort, buffer, bufferSize);
     if (module.HEAPU8.subarray(buffer, buffer + length).includes(0xfd)) {
         console.log('Received MAVLink data from ArduPlane WebAssembly SITL');
         process.exit(0);
