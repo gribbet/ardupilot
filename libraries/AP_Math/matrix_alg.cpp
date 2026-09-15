@@ -21,9 +21,7 @@
 
 #include <stdio.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-#if HAL_SITL_FEENABLE_ENABLED
 #include <fenv.h>
-#endif
 #endif
 
 /*
@@ -290,13 +288,11 @@ static bool inverse4x4(const T m[],T invOut[])
     uint16_t i;
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-#if HAL_SITL_FEENABLE_ENABLED
     //disable FE_INEXACT detection as it fails on mac os runs
     int old = fedisableexcept(FE_INEXACT | FE_OVERFLOW);
     if (old < 0) {
         // hal.console->printf("inverse4x4(): warning: error on disabling FE_OVERFLOW floating point exception\n");
     }
-#endif
 #endif
 
     inv[0] = m[5]  * m[10] * m[15] -
@@ -423,11 +419,9 @@ static bool inverse4x4(const T m[],T invOut[])
         invOut[i] = inv[i] * det;
     
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-#if HAL_SITL_FEENABLE_ENABLED
     if (old >= 0 && feenableexcept(old) < 0) {
         // hal.console->printf("inverse4x4(): warning: error on restoring floating exception mask\n");
     }
-#endif
 #endif
 
     return true;

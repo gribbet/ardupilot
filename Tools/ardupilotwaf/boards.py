@@ -1628,7 +1628,6 @@ class WASMBoard(SITLBoard):
 
         env.DEFINES.update(
             HAL_SITL_WASM_ENABLED = 1,
-            HAL_SITL_FEENABLE_ENABLED = 0,
             AP_NETWORKING_ENABLED = 0,
             AP_RCPROTOCOL_UDP_ENABLED = 0,
         )

@@ -197,7 +197,6 @@ void Scheduler::set_system_initialized() {
             "PANIC: scheduler system initialized called more than once");
     }
 
-#if HAL_SITL_FEENABLE_ENABLED
     int exceptions = FE_OVERFLOW | FE_DIVBYZERO;
 #ifndef __i386__
     // i386 with gcc doesn't work with FE_INVALID
@@ -212,7 +211,6 @@ void Scheduler::set_system_initialized() {
 #else
     feclearexcept(exceptions);
 #endif
-#endif // HAL_SITL_FEENABLE_ENABLED
     _initialized = true;
 }
 
