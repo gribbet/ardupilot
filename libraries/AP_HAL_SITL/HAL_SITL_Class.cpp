@@ -225,18 +225,6 @@ uint32_t HAL_SITL::get_uart_output_full_queue_count() const
     return _sitl_state->_serial_0_outqueue_full_count;
 }
 
-void HAL_SITL::reboot() const
-{
-#if !HAL_SITL_WASM_ENABLED
-    actually_reboot();
-#endif
-}
-
-uint32_t HAL_SITL::wait_for_serial0_outqueue_space() const
-{
-    return static_cast<HALSITL::UARTDriver*>(serial(0))->wait_for_system_outqueue_space();
-}
-
 void HAL_SITL::run(int argc, char * const argv[], Callbacks* callbacks) const
 {
     assert(callbacks);

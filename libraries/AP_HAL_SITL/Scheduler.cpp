@@ -196,7 +196,6 @@ void Scheduler::set_system_initialized() {
         AP_HAL::panic(
             "PANIC: scheduler system initialized called more than once");
     }
-
     int exceptions = FE_OVERFLOW | FE_DIVBYZERO;
 #ifndef __i386__
     // i386 with gcc doesn't work with FE_INVALID
@@ -224,7 +223,7 @@ void Scheduler::sitl_end_atomic() {
 
 void Scheduler::reboot(bool hold_in_bootloader)
 {
-    static_cast<const HAL_SITL&>(hal).reboot();
+    HAL_SITL::actually_reboot();
     abort();
 }
 
